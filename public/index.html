@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FIJALAB ✕ QUANT — Football Analytics Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ═══ TOP BAR ═══ -->
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">◉</div>
+    <div class="brand-txt">
+      <div class="brand-name">FIJALAB <span class="x">✕</span> QUANT</div>
+      <div class="brand-tags">POISSON · VALUE · SELF-CHECK</div>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" data-view="dashboard">TERMINAL</button>
+    <button class="tab" data-view="history">HISTORIAL</button>
+  </nav>
+  <div class="clock-wrap">
+    <span class="label">HORA LOCAL</span>
+    <span id="clock" class="clock">--:--:--</span>
+  </div>
+</header>
+
+<!-- ═══ TICKER ═══ -->
+<div class="ticker"><div class="ticker-track" id="tickerTrack"></div></div>
+
+<main class="container">
+
+<!-- ══════════ VISTA: TERMINAL ══════════ -->
+<section id="view-dashboard" class="view grid">
+
+  <!-- INPUT BAR -->
+  <div class="panel col-12 input-panel">
+    <div class="panel-head"><span class="ptitle">▸ NUEVA ORDEN DE ANÁLISIS</span><span class="pmeta" id="engineTag">MOTOR: —</span></div>
+    <form id="analyzeForm" class="input-bar">
+      <div class="field"><label>EQUIPO LOCAL</label><input id="inLocal" type="text" placeholder="Universitario" required /></div>
+      <div class="vs">VS</div>
+      <div class="field"><label>EQUIPO VISITANTE</label><input id="inVisitante" type="text" placeholder="Alianza Lima" required /></div>
+      <div class="field"><label>TORNEO</label><input id="inTorneo" type="text" placeholder="Liga 1 Perú" /></div>
+      <div class="field">
+        <label>PERFIL DE RIESGO</label>
+        <select id="inPerfil">
+          <option value="conservador">CONSERVADOR</option>
+          <option value="balanceado" selected>BALANCEADO</option>
+          <option value="agresivo">AGRESIVO</option>
+        </select>
+      </div>
+      <button id="btnAnalyze" type="submit" class="btn-analyze">▶ ANALIZAR</button>
+    </form>
+  </div>
+
+  <!-- CICLO DE EJECUCIÓN -->
+  <div class="panel col-12">
+    <div class="panel-head"><span class="ptitle">▸ CICLO DE EJECUCIÓN</span><span class="pmeta" id="pipeElapsed"></span></div>
+    <div class="pipeline" id="pipeline">
+      <div class="pstep" data-step="1"><span class="pnum">01</span><span class="pname">BUSCAR</span></div>
+      <div class="pstep" data-step="2"><span class="pnum">02</span><span class="pname">EXTRAER</span></div>
+      <div class="pstep" data-step="3"><span class="pnum">03</span><span class="pname">VALIDAR</span></div>
+      <div class="pstep" data-step="4"><span class="pnum">04</span><span class="pname">PONDERAR</span></div>
+      <div class="pstep" data-step="5"><span class="pnum">05</span><span class="pname">ARMAR</span></div>
+      <div class="pstep" data-step="6"><span class="pnum">06</span><span class="pname">EMITIR</span></div>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <div class="panel col-6 hero scanline" id="heroPanel">
+    <div class="panel-head"><span class="ptitle">▸ SEÑAL PRINCIPAL</span><span class="pmeta" id="heroMatch">— vs —</span></div>
+    <div class="hero-body">
+      <div class="hero-conf">
+        <div class="hero-num" id="heroConf">--</div>
+        <div class="hero-sub"><span class="label">CONFIANZA %</span><div id="heroPick" class="hero-pick">esperando orden…</div></div>
+      </div>
+      <div class="hero-1x2">
+        <div class="stat"><span class="label">LOCAL (1)</span><span class="stat-num green" id="p1">--%</span><span class="stat-odd" id="c1">@ -.--</span></div>
+        <div class="stat"><span class="label">EMPATE (X)</span><span class="stat-num amber" id="pX">--%</span><span class="stat-odd" id="cX">@ -.--</span></div>
+        <div class="stat"><span class="label">VISITA (2)</span><span class="stat-num red" id="p2">--%</span><span class="stat-odd" id="c2">@ -.--</span></div>
+      </div>
+      <div class="hero-xg"><span class="label">xG MODELO</span> <span id="xgTxt" class="cyan">-.- / -.-</span> <span class="label" style="margin-left:14px">RESUMEN</span> <span id="resumenTxt" class="dim">—</span></div>
+    </div>
+  </div>
+
+  <!-- BET BUILDER -->
+  <div class="panel col-3">
+    <div class="panel-head"><span class="ptitle">▸ BET BUILDER</span><span class="badge badge-yellow" id="combiPerfil">—</span></div>
+    <div class="builder-body">
+      <div class="multi" id="combiMulti">X—</div>
+      <div class="legs" id="combiLegs"><div class="dim empty">sin combinada</div></div>
+      <div class="builder-foot">
+        <div><span class="label">PROB EST.</span><span id="combiProb" class="cyan">--%</span></div>
+        <div><span class="label">STAKE SUG.</span><span id="combiStake" class="green">S/ --</span></div>
+        <div><span class="label">EV</span><span id="combiEv" class="amber">--%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCORE GLOBAL -->
+  <div class="panel col-3">
+    <div class="panel-head"><span class="ptitle">▸ SCORE GLOBAL</span></div>
+    <div class="gauge-wrap">
+      <svg viewBox="0 0 120 120" class="gauge">
+        <circle cx="60" cy="60" r="50" class="gauge-bg" />
+        <circle cx="60" cy="60" r="50" class="gauge-fg" id="gaugeArc" />
+      </svg>
+      <div class="gauge-center"><div id="gaugeNum" class="gauge-num">--</div><div class="label">/ 100</div></div>
+    </div>
+    <div class="gauge-foot label" id="gaugeVerdict">SIN DATOS</div>
+  </div>
+
+  <!-- CONFIANZA POR PICK -->
+  <div class="panel col-4">
+    <div class="panel-head"><span class="ptitle">▸ CONFIANZA POR PICK</span></div>
+    <canvas id="confChart" class="chart" height="190"></canvas>
+  </div>
+
+  <!-- MATRIZ DE ROBUSTEZ -->
+  <div class="panel col-8">
+    <div class="panel-head"><span class="ptitle">▸ MATRIZ DE ROBUSTEZ</span></div>
+    <div class="matrix-wrap">
+      <table class="matrix" id="matrix">
+        <thead><tr><th>MERCADO</th><th>SELECCIÓN</th><th>CONF</th><th>CUOTA</th><th>JUSTA</th><th>+EV</th><th>RIESGO</th></tr></thead>
+        <tbody><tr><td colspan="7" class="dim empty">esperando análisis…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MONTE CARLO -->
+  <div class="panel col-7">
+    <div class="panel-head"><span class="ptitle">▸ MONTE CARLO · 5,000 SIMULACIONES POISSON</span><span class="pmeta" id="mcMeta"></span></div>
+    <canvas id="mcChart" class="chart" height="150"></canvas>
+    <div class="mc-stats" id="mcStats">
+      <div><span class="label">OVER 2.5</span><span class="mc-num green" id="mcOver">--%</span></div>
+      <div><span class="label">UNDER 2.5</span><span class="mc-num red" id="mcUnder">--%</span></div>
+      <div><span class="label">AMBOS MARCAN</span><span class="mc-num amber" id="mcBtts">--%</span></div>
+      <div><span class="label">MARCADOR MODA</span><span class="mc-num yellow" id="mcScore">-–-</span></div>
+      <div><span class="label">SELF-CHECK 1X2</span><span class="mc-num cyan" id="mcSelf">--/--/--</span></div>
+    </div>
+  </div>
+
+  <!-- FEED DEL ANALISTA -->
+  <div class="panel col-5 feed-panel">
+    <div class="panel-head"><span class="ptitle">▸ FEED DEL ANALISTA</span><span class="pmeta blink-dot-wrap"><span class="dot-red"></span> STREAM</span></div>
+    <div class="feed" id="feed">
+      <div class="feed-line"><span class="ftime">--:--:--</span><span class="badge badge-cyan">SYS</span><span class="ftxt dim">terminal iniciada — esperando órdenes</span></div>
+    </div>
+  </div>
+
+  <!-- ALERTAS -->
+  <div class="panel col-12 alerts-panel" id="alertsPanel">
+    <div class="panel-head"><span class="ptitle red">▸ ALERTAS Y CONTRADICCIONES</span></div>
+    <div id="alertsList" class="alerts"><span class="dim">sin alertas — el sistema validará cada combinada emitida</span></div>
+  </div>
+
+</section>
+
+<!-- ══════════ VISTA: HISTORIAL ══════════ -->
+<section id="view-history" class="view grid" style="display:none">
+
+  <div class="panel col-4">
+    <div class="panel-head"><span class="ptitle">▸ GESTIÓN DE BANCA</span></div>
+    <div class="banca-body">
+      <div class="field"><label>BANCA (S/ SOLES)</label><input id="inBanca" type="number" min="1" step="10" value="500" /></div>
+      <button id="btnBanca" class="btn-mini">GUARDAR</button>
+      <p class="dim note">El stake sugerido usa 1–2% de esta banca según el perfil de riesgo.</p>
+    </div>
+  </div>
+
+  <div class="panel col-8">
+    <div class="panel-head"><span class="ptitle">▸ MÉTRICAS REALES</span><span class="pmeta" id="statMeta">0 picks liquidados</span></div>
+    <div class="stats-row">
+      <div class="stat-card"><span class="label">WIN RATE</span><span class="big" id="stWinrate">--%</span></div>
+      <div class="stat-card"><span class="label">ROI</span><span class="big" id="stRoi">--%</span></div>
+      <div class="stat-card"><span class="label">PROFIT</span><span class="big" id="stProfit">S/ 0</span></div>
+      <div class="stat-card"><span class="label">RACHA</span><span class="big" id="stStreak">—</span></div>
+    </div>
+  </div>
+
+  <div class="panel col-7">
+    <div class="panel-head"><span class="ptitle">▸ EQUITY CURVE · EVOLUCIÓN DE BANCA</span></div>
+    <canvas id="equityChart" class="chart" height="190"></canvas>
+  </div>
+
+  <div class="panel col-5">
+    <div class="panel-head"><span class="ptitle">▸ RENDIMIENTO POR MERCADO</span></div>
+    <table class="matrix" id="marketTable">
+      <thead><tr><th>MERCADO</th><th>N</th><th>WIN%</th><th>PROFIT</th></tr></thead>
+      <tbody><tr><td colspan="4" class="dim empty">sin picks liquidados</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="panel col-12">
+    <div class="panel-head"><span class="ptitle">▸ HISTORIAL DE ANÁLISIS</span><span class="pmeta">marca cada pick: G = ganada · P = perdida · N = nula</span></div>
+    <div id="historyList" class="history-list"><div class="dim empty">sin análisis registrados todavía</div></div>
+  </div>
+
+</section>
+</main>
+
+<!-- ═══ FOOTER / DISCLAIMER ═══ -->
+<footer class="footer">
+  <span class="red">⚠ +18</span> · ANÁLISIS ESTADÍSTICO — NO ES ASESORÍA FINANCIERA · LA FIJA NO EXISTE: NINGÚN PICK ESTÁ GARANTIZADO, SIEMPRE SE MUESTRA LA PROBABILIDAD ·
+  JUEGA RESPONSABLEMENTE · NUNCA APUESTES DINERO QUE NO PUEDAS PERDER
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

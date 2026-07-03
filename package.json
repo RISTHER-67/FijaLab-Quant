@@ -1,0 +1,17 @@
+{
+  "name": "fijalab-quant",
+  "version": "1.0.0",
+  "description": "FIJALAB ✕ QUANT — bot analista de apuestas de fútbol con estética de dashboard quant",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
