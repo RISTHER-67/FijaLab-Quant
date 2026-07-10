@@ -1,7 +1,10 @@
 // providers.js — Adaptadores neutrales para la API de cualquier IA con búsqueda web.
 // Todos usan fetch nativo; se selecciona con AI_PROVIDER o auto-detección por API key.
 
-const MAX_OUT = 8000;
+// Presupuesto de tokens de salida. El Bet Builder pide 10-16 picks => JSON grande;
+// además en Gemini/Anthropic el "thinking" consume de este presupuesto, así que hay
+// que dejar margen o el JSON se trunca a media respuesta.
+const MAX_OUT = 16000;
 
 function fail(provider, status, body) {
   let msg = body;
@@ -19,6 +22,7 @@ async function callOpenAI(apiKey, model, system, user) {
       instructions: system,
       input: user,
       tools: [{ type: 'web_search' }],
+      temperature: 0.3,
       max_output_tokens: MAX_OUT
     })
   });
@@ -47,7 +51,13 @@ async function callGemini(apiKey, model, system, user) {
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: 'user', parts: [{ text: user }] }],
       tools: [{ google_search: {} }],
-      generationConfig: { maxOutputTokens: MAX_OUT }
+      // thinkingBudget acota el razonamiento interno para que NO se coma todo el
+      // presupuesto y el JSON salga completo (gemini-2.5-flash trunca si se pasa).
+      generationConfig: {
+        maxOutputTokens: MAX_OUT,
+        temperature: 0.3,
+        thinkingConfig: { thinkingBudget: 3000 }
+      }
     })
   });
   if (!res.ok) fail('gemini', res.status, await res.text());
@@ -79,6 +89,7 @@ async function callAnthropic(apiKey, model, system, user) {
       body: JSON.stringify({
         model,
         max_tokens: MAX_OUT,
+        temperature: 0.3,
         system,
         messages,
         tools: [anthropicSearchTool(model)]
@@ -105,6 +116,7 @@ async function callPerplexity(apiKey, model, system, user) {
     body: JSON.stringify({
       model,
       messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      temperature: 0.3,
       max_tokens: MAX_OUT
     })
   });
@@ -128,6 +140,7 @@ async function callOpenRouter(apiKey, model, system, user) {
       model,
       plugins: [{ id: 'web' }],
       messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      temperature: 0.3,
       max_tokens: MAX_OUT
     })
   });
@@ -135,6 +148,31 @@ async function callOpenRouter(apiKey, model, system, user) {
   const json = await res.json();
   const text = json.choices?.[0]?.message?.content || '';
   const searches = (json.citations || []).length;
+  return { text, searches };
+}
+
+// ---------- Groq (compound: búsqueda web integrada, inferencia ultrarrápida) ----------
+// Modelos groq/compound y groq/compound-mini traen web search + code execution.
+// Los modelos llama-* de Groq NO tienen búsqueda web (datos estimados).
+async function callGroq(apiKey, model, system, user) {
+  // Groq gratis = 30k tokens/min. El "requested" reserva max_completion_tokens, así que
+  // lo capamos bajo (el JSON de salida es chico) para no chocar con el límite TPM.
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      temperature: 0.3,
+      max_completion_tokens: Math.min(MAX_OUT, 3500)
+    })
+  });
+  if (!res.ok) fail('groq', res.status, await res.text());
+  const json = await res.json();
+  const msg = json.choices?.[0]?.message || {};
+  const text = msg.content || '';
+  const tools = Array.isArray(msg.executed_tools) ? msg.executed_tools : [];
+  const searches = tools.filter(t => /search/i.test(t.type || t.name || '')).length;
   return { text, searches };
 }
 
@@ -151,6 +189,7 @@ async function callOllama(_apiKey, model, system, user) {
         model,
         messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
         response_format: { type: 'json_object' }, // fuerza JSON válido en Ollama
+        temperature: 0.3,
         max_tokens: MAX_OUT,
         stream: false
       })
@@ -169,6 +208,7 @@ export const PROVIDERS = {
   openai:     { label: 'OPENAI',     env: 'OPENAI_API_KEY',     defaultModel: 'gpt-4o',            call: callOpenAI },
   gemini:     { label: 'GEMINI',     env: 'GEMINI_API_KEY',     defaultModel: 'gemini-2.5-flash',  call: callGemini },
   anthropic:  { label: 'ANTHROPIC',  env: 'ANTHROPIC_API_KEY',  defaultModel: 'claude-sonnet-4-6', call: callAnthropic },
+  groq:       { label: 'GROQ',       env: 'GROQ_API_KEY',       defaultModel: 'groq/compound-mini', call: callGroq },
   perplexity: { label: 'PERPLEXITY', env: 'PERPLEXITY_API_KEY', defaultModel: 'sonar-pro',         call: callPerplexity },
   openrouter: { label: 'OPENROUTER', env: 'OPENROUTER_API_KEY', defaultModel: 'openai/gpt-4o',     call: callOpenRouter },
   ollama:     { label: 'OLLAMA·LOCAL', env: 'OLLAMA_MODEL',     defaultModel: 'qwen2.5:7b',        call: callOllama, local: true }
